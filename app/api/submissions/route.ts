@@ -3,13 +3,39 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { extractVideoId, fetchYouTubeMetadata } from "@/lib/youtube";
 
-const submissionSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().optional(),
-  youtube_url: z.string().url().optional(),
-  drive_url: z.string().url().optional(),
-  link_type: z.enum(["youtube", "drive"]),
-});
+const submissionSchema = z
+  .object({
+    title: z.string().min(1),
+    description: z.string().optional(),
+    youtube_url: z.string().optional(),
+    drive_url: z.string().optional(),
+    link_type: z.enum(["youtube", "drive"]),
+  })
+  .refine(
+    (data) => {
+      if (data.link_type === "youtube") {
+        // For YouTube submissions, youtube_url should be a valid URL if provided
+        return (
+          !data.youtube_url ||
+          data.youtube_url === "" ||
+          data.youtube_url.match(/^https?:\/\/.+/)
+        );
+      }
+      if (data.link_type === "drive") {
+        // For Drive submissions, drive_url should be a valid URL if provided
+        return (
+          !data.drive_url ||
+          data.drive_url === "" ||
+          data.drive_url.match(/^https?:\/\/.+/)
+        );
+      }
+      return true;
+    },
+    {
+      message: "Please provide a valid URL for the selected link type",
+      path: ["youtube_url", "drive_url"],
+    }
+  );
 
 export async function POST(request: NextRequest) {
   try {
@@ -94,6 +120,8 @@ export async function POST(request: NextRequest) {
       youtube_url: validatedData.youtube_url || null,
       drive_url: validatedData.drive_url || null,
       link_type: validatedData.link_type,
+      // Set status based on link type: YouTube = published, Drive = draft
+      status: validatedData.link_type === "youtube" ? "published" : "draft",
       youtube_video_id: youtubeVideoId,
       youtube_title: youtubeMetadata?.title || null,
       youtube_description: youtubeMetadata?.description || null,
@@ -108,6 +136,11 @@ export async function POST(request: NextRequest) {
       youtube_comment_count: parseInt(
         youtubeMetadata?.statistics?.commentCount || "0"
       ),
+      // Set timestamps based on status
+      submitted_at: new Date().toISOString(),
+      ...(validatedData.link_type === "youtube" && {
+        published_at: new Date().toISOString(),
+      }),
     };
 
     console.log("Submitting data:", submissionData);
@@ -136,6 +169,10 @@ export async function POST(request: NextRequest) {
       .from("profiles")
       .update({
         total_submissions: (profile.total_submissions || 0) + 1,
+        // Only increment published count for YouTube submissions (published immediately)
+        ...(validatedData.link_type === "youtube" && {
+          total_published: (profile.total_published || 0) + 1,
+        }),
       })
       .eq("id", user.id);
 

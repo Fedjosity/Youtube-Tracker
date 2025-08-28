@@ -46,6 +46,25 @@ export function NewSubmissionDialog({ children }: NewSubmissionDialogProps) {
     setLoading(true);
 
     try {
+      // Client-side validation
+      if (!formData.title.trim()) {
+        toast.error("Title is required");
+        setLoading(false);
+        return;
+      }
+
+      if (formData.link_type === "youtube" && !formData.youtube_url.trim()) {
+        toast.error("YouTube URL is required");
+        setLoading(false);
+        return;
+      }
+
+      if (formData.link_type === "drive" && !formData.drive_url.trim()) {
+        toast.error("Google Drive URL is required");
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch("/api/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
