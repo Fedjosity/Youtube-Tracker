@@ -340,6 +340,115 @@ export function SystemSettingsForm() {
             </CardContent>
           </Card>
 
+          {/* Utility Tools */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Utility Tools</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <h4 className="text-base font-medium">Fix Profile Counts</h4>
+                  <p className="text-sm text-gray-500">
+                    Recalculate all user profile submission counts. Use this if
+                    counts are incorrect.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    if (
+                      confirm(
+                        "This will recalculate all profile counts. Continue?"
+                      )
+                    ) {
+                      setLoading(true);
+                      try {
+                        const response = await fetch(
+                          "/api/fix-profile-counts",
+                          {
+                            method: "POST",
+                          }
+                        );
+                        const result = await response.json();
+
+                        if (response.ok) {
+                          toast({
+                            title: "Success",
+                            description:
+                              "Profile counts have been recalculated successfully.",
+                          });
+                        } else {
+                          throw new Error(
+                            result.error || "Failed to fix profile counts"
+                          );
+                        }
+                      } catch (error: any) {
+                        toast({
+                          title: "Error",
+                          description:
+                            error.message || "Failed to fix profile counts",
+                          variant: "destructive",
+                        });
+                      } finally {
+                        setLoading(false);
+                      }
+                    }
+                  }}
+                  disabled={loading}
+                >
+                  {loading ? "Fixing..." : "Fix Counts"}
+                </Button>
+              </div>
+
+              <div className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <h4 className="text-base font-medium">
+                    Debug Profile Counts
+                  </h4>
+                  <p className="text-sm text-gray-500">
+                    Check current profile counts vs actual submission counts to
+                    identify mismatches.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    setLoading(true);
+                    try {
+                      const response = await fetch("/api/debug-profile-counts");
+                      const result = await response.json();
+
+                      if (response.ok) {
+                        console.log("Debug data:", result);
+                        toast({
+                          title: "Debug Complete",
+                          description: `Found ${result.summary.users_with_mismatched_submissions} users with mismatched counts. Check console for details.`,
+                        });
+                      } else {
+                        throw new Error(
+                          result.error || "Failed to debug profile counts"
+                        );
+                      }
+                    } catch (error: any) {
+                      toast({
+                        title: "Error",
+                        description:
+                          error.message || "Failed to debug profile counts",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                >
+                  {loading ? "Checking..." : "Debug Counts"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="flex justify-end">
             <Button type="submit" disabled={loading}>
               {loading ? "Saving..." : "Save Settings"}

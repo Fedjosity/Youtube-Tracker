@@ -500,8 +500,8 @@ export function OverviewTable() {
                 </CarouselContent>
                 {userVideo.videos.length > 3 && (
                   <>
-                    <CarouselPrevious />
-                    <CarouselNext />
+                    <CarouselPrevious className="left-2" />
+                    <CarouselNext className="right-2" />
                   </>
                 )}
               </Carousel>

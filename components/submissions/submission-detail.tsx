@@ -191,7 +191,9 @@ export function SubmissionDetail({
         throw new Error("You don't have permission to delete this submission");
       }
 
-      // Delete the submission
+      console.log("Deleting submission:", submission.id);
+
+      // Delete the submission - the database trigger will automatically update profile counts
       const { error: deleteError } = await supabase
         .from("submissions")
         .delete()
@@ -202,31 +204,32 @@ export function SubmissionDetail({
         throw new Error(deleteError.message || "Failed to delete submission");
       }
 
-      // Update the user's profile counts manually since the trigger might not fire immediately
-      try {
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update({
-            total_submissions: submission.profiles.total_submissions - 1,
-            total_published:
-              submission.status === "published"
-                ? submission.profiles.total_published - 1
-                : submission.profiles.total_published,
-          })
-          .eq("id", submission.user_id);
+      console.log("Submission deleted successfully");
 
-        if (profileError) {
-          console.warn("Profile count update failed:", profileError);
+      // Manually trigger profile count update for the user as a backup
+      try {
+        const { error: countError } = await supabase.rpc(
+          "recalculate_user_profile_counts",
+          {
+            user_uuid: submission.user_id,
+          }
+        );
+
+        if (countError) {
+          console.warn("Manual count update failed:", countError);
           // Don't throw here as the main deletion was successful
+        } else {
+          console.log("Profile counts updated for user:", submission.user_id);
         }
-      } catch (profileUpdateError) {
-        console.warn("Profile count update failed:", profileUpdateError);
+      } catch (countUpdateError) {
+        console.warn("Manual count update failed:", countUpdateError);
         // Don't throw here as the main deletion was successful
       }
 
       toast({
         title: "Submission deleted",
-        description: "The submission has been deleted successfully.",
+        description:
+          "The submission has been deleted successfully. Profile counts have been updated.",
       });
 
       // Redirect to submissions page
@@ -451,12 +454,18 @@ export function SubmissionDetail({
                 <div>
                   <div className="font-medium">
                     {submission.profiles.full_name}
+                    {typeof submission.profiles.total_submissions ===
+                      "number" && (
+                      <span className="ml-1 text-xs text-gray-500">
+                        ({submission.profiles.total_submissions} submissions)
+                      </span>
+                    )}
                   </div>
                   <div className="text-sm text-gray-500 capitalize">
                     {submission.profiles.role}
                   </div>
                   <div className="text-sm text-gray-500">
-                    {submission.profiles.total_submissions || 0} submissions
+                    {/* Optionally remove this line if redundant */}
                   </div>
                 </div>
               </div>

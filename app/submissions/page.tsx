@@ -1,8 +1,8 @@
-import { AppLayout } from '@/components/layout/app-layout';
-import { SubmissionsTable } from '@/components/submissions/submissions-table';
-import { NewSubmissionDialog } from '@/components/submissions/new-submission-dialog';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { AppLayout } from "@/components/layout/app-layout";
+import { SubmissionsTable } from "@/components/submissions/submissions-table";
+import { NewSubmissionDialog } from "@/components/submissions/new-submission-dialog";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 export default function SubmissionsPage() {
   return (
@@ -11,7 +11,9 @@ export default function SubmissionsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Submissions</h1>
-            <p className="text-gray-600">Manage your video submissions and track their progress</p>
+            <p className="text-gray-600">
+              Manage video submissions and track the progress
+            </p>
           </div>
           <NewSubmissionDialog>
             <Button>

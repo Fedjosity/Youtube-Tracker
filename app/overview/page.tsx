@@ -10,7 +10,7 @@ export default function OverviewPage() {
             Progress Overview
           </h1>
           <p className="text-gray-600">
-            Track everyone's progress and view all successful submissions
+            Track the teams progress and view all successful submissions
           </p>
         </div>
 

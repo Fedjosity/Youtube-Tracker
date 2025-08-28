@@ -13,7 +13,7 @@ export default async function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600">
-            Track your team's YouTube collaboration progress
+            Track the team's YouTube collaboration progress
           </p>
         </div>
         <DashboardStats />

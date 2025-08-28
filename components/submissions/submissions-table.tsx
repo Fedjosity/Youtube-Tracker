@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Table,
@@ -7,47 +7,58 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
-import { format } from 'date-fns';
-import Link from 'next/link';
-import { useState } from 'react';
-import { Search, Filter } from 'lucide-react';
+} from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase/client";
+import { format } from "date-fns";
+import Link from "next/link";
+import { useState } from "react";
+import { Search, Filter } from "lucide-react";
 
 export function SubmissionsTable() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(0);
   const pageSize = 10;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['submissions', searchTerm, statusFilter, page],
+    queryKey: ["submissions", searchTerm, statusFilter, page],
     queryFn: async () => {
       let query = supabase
-        .from('submissions')
-        .select(`
+        .from("submissions")
+        .select(
+          `
           *,
           profiles (
             full_name,
-            avatar_url
+            avatar_url,
+            total_submissions
           )
-        `)
-        .order('created_at', { ascending: false })
+        `
+        )
+        .order("created_at", { ascending: false })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
       if (searchTerm) {
-        query = query.or(`title.ilike.%${searchTerm}%,youtube_url.ilike.%${searchTerm}%`);
+        query = query.or(
+          `title.ilike.%${searchTerm}%,youtube_url.ilike.%${searchTerm}%`
+        );
       }
 
-      if (statusFilter && statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
+      if (statusFilter && statusFilter !== "all") {
+        query = query.eq("status", statusFilter);
       }
 
       const { data, count } = await query;
@@ -57,13 +68,13 @@ export function SubmissionsTable() {
 
   const getStatusColor = (status: string) => {
     const colors: { [key: string]: string } = {
-      draft: 'bg-gray-100 text-gray-800',
-      edited: 'bg-blue-100 text-blue-800',
-      uploaded: 'bg-yellow-100 text-yellow-800',
-      published: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800',
+      draft: "bg-gray-100 text-gray-800",
+      edited: "bg-blue-100 text-blue-800",
+      uploaded: "bg-yellow-100 text-yellow-800",
+      published: "bg-green-100 text-green-800",
+      rejected: "bg-red-100 text-red-800",
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return colors[status] || "bg-gray-100 text-gray-800";
   };
 
   if (isLoading) {
@@ -135,10 +146,15 @@ export function SubmissionsTable() {
                       />
                     )}
                     <div>
-                      <p className="font-medium text-gray-900">{submission.title}</p>
-                      {submission.youtube_title && submission.youtube_title !== submission.title && (
-                        <p className="text-sm text-gray-500">{submission.youtube_title}</p>
-                      )}
+                      <p className="font-medium text-gray-900">
+                        {submission.title}
+                      </p>
+                      {submission.youtube_title &&
+                        submission.youtube_title !== submission.title && (
+                          <p className="text-sm text-gray-500">
+                            {submission.youtube_title}
+                          </p>
+                        )}
                     </div>
                   </div>
                 </TableCell>
@@ -147,25 +163,35 @@ export function SubmissionsTable() {
                     <Avatar className="h-6 w-6">
                       <AvatarImage src={submission.profiles?.avatar_url} />
                       <AvatarFallback>
-                        {submission.profiles?.full_name?.[0]?.toUpperCase() || 'U'}
+                        {submission.profiles?.full_name?.[0]?.toUpperCase() ||
+                          "U"}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm">{submission.profiles?.full_name || 'Unknown'}</span>
+                    <span className="text-sm">
+                      {submission.profiles?.full_name || "Unknown"}
+                      {typeof submission.profiles?.total_submissions ===
+                        "number" && (
+                        <span className="ml-1 text-xs text-gray-500">
+                          ({submission.profiles.total_submissions} submissions)
+                        </span>
+                      )}
+                    </span>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge className={getStatusColor(submission.status)} variant="secondary">
+                  <Badge
+                    className={getStatusColor(submission.status)}
+                    variant="secondary"
+                  >
                     {submission.status}
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline">
-                    {submission.link_type}
-                  </Badge>
+                  <Badge variant="outline">{submission.link_type}</Badge>
                 </TableCell>
                 <TableCell>
                   <span className="text-sm text-gray-600">
-                    {format(new Date(submission.created_at), 'MMM d, yyyy')}
+                    {format(new Date(submission.created_at), "MMM d, yyyy")}
                   </span>
                 </TableCell>
                 <TableCell>
@@ -184,7 +210,9 @@ export function SubmissionsTable() {
         {data && data.count > pageSize && (
           <div className="flex items-center justify-between mt-4">
             <p className="text-sm text-gray-600">
-              Showing {page * pageSize + 1} to {Math.min((page + 1) * pageSize, data.count)} of {data.count} results
+              Showing {page * pageSize + 1} to{" "}
+              {Math.min((page + 1) * pageSize, data.count)} of {data.count}{" "}
+              results
             </p>
             <div className="flex space-x-2">
               <Button

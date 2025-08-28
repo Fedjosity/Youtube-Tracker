@@ -128,7 +128,7 @@ export function Navbar({ user, profile }: NavbarProps) {
             </Sheet>
 
             <Link href="/dashboard" className="text-xl font-bold text-gray-900">
-              YouTube Tracker
+              Fedjosity YouTube Tracker
             </Link>
           </div>
 
