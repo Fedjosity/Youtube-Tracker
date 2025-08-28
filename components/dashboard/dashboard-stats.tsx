@@ -1,63 +1,79 @@
-'use client';
+"use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
-import { FileText, CheckCircle, Users, TrendingUp } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase/client";
+import { FileText, CheckCircle, Users, TrendingUp } from "lucide-react";
+import { motion } from "framer-motion";
 
 export function DashboardStats() {
   const { data: stats, isLoading } = useQuery({
-    queryKey: ['dashboard-stats'],
+    queryKey: ["dashboard-stats"],
     queryFn: async () => {
-      const [submissionsRes, publishedRes, editorsRes, weeklyRes] = await Promise.all([
-        supabase.from('submissions').select('id').execute(),
-        supabase.from('submissions').select('id').eq('status', 'published').execute(),
-        supabase.from('profiles').select('id').eq('role', 'editor').execute(),
-        supabase.from('submissions')
-          .select('created_at')
-          .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-          .execute()
-      ]);
+      // Get total submissions count
+      const { count: totalSubmissions } = await supabase
+        .from("submissions")
+        .select("*", { count: "exact", head: true });
+
+      // Get published submissions count
+      const { count: totalPublished } = await supabase
+        .from("submissions")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "published");
+
+      // Get active editors count
+      const { count: activeEditors } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true })
+        .eq("role", "editor");
+
+      // Get weekly submissions count
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+      const { count: weeklySubmissions } = await supabase
+        .from("submissions")
+        .select("*", { count: "exact", head: true })
+        .gte("created_at", oneWeekAgo.toISOString());
 
       return {
-        totalSubmissions: submissionsRes.data?.length || 0,
-        totalPublished: publishedRes.data?.length || 0,
-        activeEditors: editorsRes.data?.length || 0,
-        weeklySubmissions: weeklyRes.data?.length || 0,
+        totalSubmissions: totalSubmissions || 0,
+        totalPublished: totalPublished || 0,
+        activeEditors: activeEditors || 0,
+        weeklySubmissions: weeklySubmissions || 0,
       };
     },
   });
 
   const statCards = [
     {
-      title: 'Total Submissions',
+      title: "Total Submissions",
       value: stats?.totalSubmissions || 0,
       icon: FileText,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50'
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
     },
     {
-      title: 'Published Videos',
+      title: "Published Videos",
       value: stats?.totalPublished || 0,
       icon: CheckCircle,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50'
+      color: "text-green-600",
+      bgColor: "bg-green-50",
     },
     {
-      title: 'Active Editors',
+      title: "Active Editors",
       value: stats?.activeEditors || 0,
       icon: Users,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50'
+      color: "text-purple-600",
+      bgColor: "bg-purple-50",
     },
     {
-      title: 'This Week',
+      title: "This Week",
       value: stats?.weeklySubmissions || 0,
       icon: TrendingUp,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50'
+      color: "text-orange-600",
+      bgColor: "bg-orange-50",
     },
   ];
 

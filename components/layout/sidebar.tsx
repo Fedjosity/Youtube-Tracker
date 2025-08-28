@@ -10,6 +10,7 @@ import {
   Settings,
   CheckSquare,
   User,
+  Eye,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -23,6 +24,7 @@ export function Sidebar({ isAdmin }: SidebarProps) {
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: Home },
+    { name: "Overview", href: "/overview", icon: Eye },
     { name: "Submissions", href: "/submissions", icon: FileText },
     { name: "Leaderboard", href: "/leaderboard", icon: Trophy },
     { name: "Analytics", href: "/analytics", icon: BarChart3 },

@@ -1,28 +1,38 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import { StatusTimeline } from "./status-timeline";
-import { CommentsSection } from "./comments-section";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
-  ExternalLink,
-  Calendar,
+  CheckCircle,
+  XCircle,
+  Edit,
+  Trash2,
+  Play,
   Eye,
   ThumbsUp,
   MessageCircle,
-  CheckCircle,
-  XCircle,
+  Calendar,
+  User,
+  ExternalLink,
 } from "lucide-react";
-import { Label } from "@/components/ui/label";
 import YouTube from "react-youtube";
-import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
 
 interface SubmissionDetailProps {
   submission: any;
@@ -34,18 +44,39 @@ export function SubmissionDetail({
   isAdmin = false,
 }: SubmissionDetailProps) {
   const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    title: submission.title,
+    description: submission.description || "",
+  });
   const { toast } = useToast();
   const router = useRouter();
 
-  const getStatusColor = (status: string) => {
-    const colors: { [key: string]: string } = {
-      draft: "bg-gray-100 text-gray-800",
-      edited: "bg-blue-100 text-blue-800",
-      uploaded: "bg-yellow-100 text-yellow-800",
-      published: "bg-green-100 text-green-800",
-      rejected: "bg-red-100 text-red-800",
+  // Get current user for edit permissions
+  useEffect(() => {
+    const getUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+        setCurrentUser({ ...user, profile });
+      }
     };
-    return colors[status] || "bg-gray-100 text-gray-800";
+    getUser();
+  }, []);
+
+  const canEdit = () => {
+    return (
+      currentUser &&
+      (currentUser.profile?.role === "admin" ||
+        submission.user_id === currentUser.id)
+    );
   };
 
   const handleAdminAction = async (action: "approve" | "reject") => {
@@ -70,6 +101,20 @@ export function SubmissionDetail({
         throw error;
       }
 
+      // If approved, update the user's profile count
+      if (action === "approve") {
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({
+            total_published: submission.profiles.total_published + 1,
+          })
+          .eq("id", submission.user_id);
+
+        if (profileError) {
+          console.error("Profile update error:", profileError);
+        }
+      }
+
       toast({
         title: `Submission ${action === "approve" ? "approved" : "rejected"}`,
         description: `The submission has been ${
@@ -90,116 +135,232 @@ export function SubmissionDetail({
     }
   };
 
+  const handleEdit = () => {
+    setEditForm({
+      title: submission.title,
+      description: submission.description || "",
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    setLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from("submissions")
+        .update({
+          title: editForm.title,
+          description: editForm.description,
+        })
+        .eq("id", submission.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Submission updated",
+        description: "The submission has been updated successfully.",
+      });
+
+      setIsEditDialogOpen(false);
+      router.refresh();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update submission",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (
+      !confirm(
+        "Are you sure you want to delete this submission? This action cannot be undone."
+      )
+    )
+      return;
+
+    setLoading(true);
+
+    try {
+      // First, check if the user has permission to delete this submission
+      if (!canEdit()) {
+        throw new Error("You don't have permission to delete this submission");
+      }
+
+      // Delete the submission
+      const { error: deleteError } = await supabase
+        .from("submissions")
+        .delete()
+        .eq("id", submission.id);
+
+      if (deleteError) {
+        console.error("Delete error:", deleteError);
+        throw new Error(deleteError.message || "Failed to delete submission");
+      }
+
+      // Update the user's profile counts manually since the trigger might not fire immediately
+      try {
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({
+            total_submissions: submission.profiles.total_submissions - 1,
+            total_published:
+              submission.status === "published"
+                ? submission.profiles.total_published - 1
+                : submission.profiles.total_published,
+          })
+          .eq("id", submission.user_id);
+
+        if (profileError) {
+          console.warn("Profile count update failed:", profileError);
+          // Don't throw here as the main deletion was successful
+        }
+      } catch (profileUpdateError) {
+        console.warn("Profile count update failed:", profileUpdateError);
+        // Don't throw here as the main deletion was successful
+      }
+
+      toast({
+        title: "Submission deleted",
+        description: "The submission has been deleted successfully.",
+      });
+
+      // Redirect to submissions page
+      router.push("/submissions");
+    } catch (error: any) {
+      console.error("Delete submission error:", error);
+      toast({
+        title: "Error",
+        description:
+          error.message || "Failed to delete submission. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: { [key: string]: string } = {
+      draft: "bg-gray-100 text-gray-800",
+      edited: "bg-blue-100 text-blue-800",
+      uploaded: "bg-yellow-100 text-yellow-800",
+      published: "bg-green-100 text-green-800",
+      rejected: "bg-red-100 text-red-800",
+    };
+    return colors[status] || "bg-gray-100 text-gray-800";
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
             {submission.title}
           </h1>
-          <div className="flex items-center space-x-4 mt-2">
-            <div className="flex items-center space-x-2">
-              <Avatar className="h-6 w-6">
-                <AvatarImage src={submission.profiles?.avatar_url} />
-                <AvatarFallback>
-                  {submission.profiles?.full_name?.[0]?.toUpperCase() || "U"}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-sm text-gray-600">
-                {submission.profiles?.full_name || "Unknown User"}
-              </span>
-            </div>
-            <Badge
-              className={getStatusColor(submission.status)}
-              variant="secondary"
-            >
-              {submission.status}
-            </Badge>
-            <span className="text-sm text-gray-500">
-              Created {format(new Date(submission.created_at), "MMM d, yyyy")}
-            </span>
-          </div>
+          <p className="text-gray-600 mt-2">
+            by {submission.profiles.full_name} •{" "}
+            {format(new Date(submission.created_at), "MMMM d, yyyy")}
+          </p>
         </div>
-
-        {/* Admin Actions */}
-        {isAdmin &&
-          submission.status === "draft" &&
-          submission.link_type === "drive" && (
+        <div className="flex items-center space-x-2">
+          <Badge className={getStatusColor(submission.status)}>
+            {submission.status}
+          </Badge>
+          {canEdit() && (
             <div className="flex space-x-2">
               <Button
-                onClick={() => handleAdminAction("approve")}
+                size="sm"
+                variant="outline"
+                onClick={handleEdit}
                 disabled={loading}
-                className="bg-green-600 hover:bg-green-700"
               >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Approve
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
               </Button>
               <Button
-                onClick={() => handleAdminAction("reject")}
+                size="sm"
+                variant="outline"
+                onClick={handleDelete}
                 disabled={loading}
-                variant="destructive"
+                className="text-red-600 hover:text-red-700"
               >
-                <XCircle className="h-4 w-4 mr-2" />
-                Reject
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
               </Button>
             </div>
           )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Video Preview */}
-          {submission.link_type === "youtube" &&
-            submission.youtube_video_id && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Video Preview</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="aspect-video rounded-lg overflow-hidden">
-                    <YouTube
-                      videoId={submission.youtube_video_id}
-                      opts={{
-                        width: "100%",
-                        height: "100%",
-                        playerVars: {
-                          autoplay: 0,
-                        },
-                      }}
-                      className="w-full h-full"
-                    />
+      {/* Video Section */}
+      {submission.youtube_video_id && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Play className="h-5 w-5" />
+              Video
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="aspect-video rounded-lg overflow-hidden bg-gray-100">
+              <YouTube
+                videoId={submission.youtube_video_id}
+                opts={{
+                  width: "100%",
+                  height: "100%",
+                  playerVars: {
+                    autoplay: 0,
+                    modestbranding: 1,
+                    rel: 0,
+                  },
+                }}
+                className="w-full h-full"
+              />
+            </div>
+            <div className="mt-4 flex justify-between items-center">
+              <Button
+                variant="outline"
+                onClick={() => window.open(submission.youtube_url, "_blank")}
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                View on YouTube
+              </Button>
+              {submission.youtube_view_count > 0 && (
+                <div className="flex items-center space-x-4 text-sm text-gray-500">
+                  <div className="flex items-center space-x-1">
+                    <Eye className="h-4 w-4" />
+                    <span>
+                      {submission.youtube_view_count.toLocaleString()}
+                    </span>
                   </div>
+                  <div className="flex items-center space-x-1">
+                    <ThumbsUp className="h-4 w-4" />
+                    <span>
+                      {submission.youtube_like_count.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <MessageCircle className="h-4 w-4" />
+                    <span>
+                      {submission.youtube_comment_count.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-                  {/* YouTube Stats */}
-                  {submission.youtube_view_count > 0 && (
-                    <div className="flex items-center space-x-6 mt-4 text-sm text-gray-600">
-                      <div className="flex items-center space-x-1">
-                        <Eye className="h-4 w-4" />
-                        <span>
-                          {submission.youtube_view_count.toLocaleString()} views
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <ThumbsUp className="h-4 w-4" />
-                        <span>
-                          {submission.youtube_like_count.toLocaleString()} likes
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <MessageCircle className="h-4 w-4" />
-                        <span>
-                          {submission.youtube_comment_count.toLocaleString()}{" "}
-                          comments
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
+      {/* Details Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
           {/* Description */}
           {submission.description && (
             <Card>
@@ -214,110 +375,171 @@ export function SubmissionDetail({
             </Card>
           )}
 
-          {/* External Links */}
+          {/* Submission Details */}
           <Card>
             <CardHeader>
-              <CardTitle>Links</CardTitle>
+              <CardTitle>Submission Details</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {submission.youtube_url && (
-                <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-red-900">YouTube Video</p>
-                    <p className="text-sm text-red-700 truncate">
-                      {submission.youtube_url}
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm" asChild>
-                    <a
-                      href={submission.youtube_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </Button>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Type:</span>
+                  <Badge variant="outline" className="capitalize">
+                    {submission.link_type}
+                  </Badge>
                 </div>
-              )}
-              {submission.drive_url && (
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-blue-900">Google Drive</p>
-                    <p className="text-sm text-blue-700 truncate">
-                      {submission.drive_url}
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm" asChild>
-                    <a
-                      href={submission.drive_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </Button>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Status:</span>
+                  <Badge className={getStatusColor(submission.status)}>
+                    {submission.status}
+                  </Badge>
                 </div>
-              )}
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Submitted:</span>
+                  <span>
+                    {format(
+                      new Date(submission.created_at),
+                      "MMM d, yyyy 'at' h:mm a"
+                    )}
+                  </span>
+                </div>
+                {submission.published_at && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Published:</span>
+                    <span>
+                      {format(
+                        new Date(submission.published_at),
+                        "MMM d, yyyy 'at' h:mm a"
+                      )}
+                    </span>
+                  </div>
+                )}
+                {submission.rejected_at && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Rejected:</span>
+                    <span>
+                      {format(
+                        new Date(submission.rejected_at),
+                        "MMM d, yyyy 'at' h:mm a"
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
-
-          {/* Comments */}
-          <CommentsSection submissionId={submission.id} />
         </div>
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Status Timeline */}
-          <StatusTimeline submission={submission} />
-
-          {/* Metadata */}
+          {/* User Info */}
           <Card>
             <CardHeader>
-              <CardTitle>Metadata</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Submitted by
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label className="text-sm font-medium text-gray-600">
-                  Type
-                </Label>
-                <p className="mt-1 capitalize">{submission.link_type}</p>
-              </div>
-
-              <Separator />
-
-              <div>
-                <Label className="text-sm font-medium text-gray-600">
-                  Created
-                </Label>
-                <div className="mt-1 flex items-center space-x-1 text-sm">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  <span>{format(new Date(submission.created_at), "PPP")}</span>
+            <CardContent>
+              <div className="flex items-center space-x-3">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={submission.profiles.avatar_url} />
+                  <AvatarFallback>
+                    {submission.profiles.full_name?.[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="font-medium">
+                    {submission.profiles.full_name}
+                  </div>
+                  <div className="text-sm text-gray-500 capitalize">
+                    {submission.profiles.role}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {submission.profiles.total_submissions || 0} submissions
+                  </div>
                 </div>
               </div>
-
-              {submission.youtube_published_at && (
-                <>
-                  <Separator />
-                  <div>
-                    <Label className="text-sm font-medium text-gray-600">
-                      Published on YouTube
-                    </Label>
-                    <div className="mt-1 flex items-center space-x-1 text-sm">
-                      <Calendar className="h-4 w-4 text-gray-400" />
-                      <span>
-                        {format(
-                          new Date(submission.youtube_published_at),
-                          "PPP"
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                </>
-              )}
             </CardContent>
           </Card>
+
+          {/* Admin Actions */}
+          {isAdmin &&
+            submission.status === "draft" &&
+            submission.link_type === "drive" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Admin Actions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex space-x-2">
+                    <Button
+                      onClick={() => handleAdminAction("approve")}
+                      disabled={loading}
+                      className="bg-green-600 hover:bg-green-700 flex-1"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Approve
+                    </Button>
+                    <Button
+                      onClick={() => handleAdminAction("reject")}
+                      disabled={loading}
+                      variant="destructive"
+                      className="flex-1"
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Reject
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
         </div>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Submission</DialogTitle>
+            <DialogDescription>Update the submission details</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Title</label>
+              <Input
+                value={editForm.title}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, title: e.target.value })
+                }
+                placeholder="Enter title"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Description</label>
+              <Textarea
+                value={editForm.description}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, description: e.target.value })
+                }
+                placeholder="Enter description"
+                rows={4}
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsEditDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSaveEdit} disabled={loading}>
+                {loading ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -24,6 +24,7 @@ import {
   BarChart3,
   Users,
   CheckSquare,
+  Eye,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -43,6 +44,7 @@ export function Navbar({ user, profile }: NavbarProps) {
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: Home },
+    { name: "Overview", href: "/overview", icon: Eye },
     { name: "Submissions", href: "/submissions", icon: FileText },
     { name: "Leaderboard", href: "/leaderboard", icon: Trophy },
     { name: "Analytics", href: "/analytics", icon: BarChart3 },

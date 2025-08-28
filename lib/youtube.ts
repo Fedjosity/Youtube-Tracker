@@ -17,8 +17,14 @@ export interface YouTubeVideoData {
 
 export function extractVideoId(url: string): string | null {
   const patterns = [
+    // Regular YouTube watch URLs
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-    /^([a-zA-Z0-9_-]{11})$/
+    // YouTube live URLs
+    /youtube\.com\/live\/([^&\n?#]+)/,
+    // YouTube shorts URLs
+    /youtube\.com\/shorts\/([^&\n?#]+)/,
+    // Direct video ID (11 characters)
+    /^([a-zA-Z0-9_-]{11})$/,
   ];
 
   for (const pattern of patterns) {
@@ -31,10 +37,12 @@ export function extractVideoId(url: string): string | null {
   return null;
 }
 
-export async function fetchYouTubeMetadata(videoId: string): Promise<YouTubeVideoData | null> {
+export async function fetchYouTubeMetadata(
+  videoId: string
+): Promise<YouTubeVideoData | null> {
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) {
-    throw new Error('YouTube API key not configured');
+    throw new Error("YouTube API key not configured");
   }
 
   try {
@@ -53,7 +61,7 @@ export async function fetchYouTubeMetadata(videoId: string): Promise<YouTubeVide
     }
 
     const video = data.items[0];
-    
+
     return {
       id: video.id,
       title: video.snippet.title,
@@ -61,13 +69,13 @@ export async function fetchYouTubeMetadata(videoId: string): Promise<YouTubeVide
       thumbnails: video.snippet.thumbnails,
       publishedAt: video.snippet.publishedAt,
       statistics: {
-        viewCount: video.statistics.viewCount || '0',
-        likeCount: video.statistics.likeCount || '0',
-        commentCount: video.statistics.commentCount || '0'
-      }
+        viewCount: video.statistics.viewCount || "0",
+        likeCount: video.statistics.likeCount || "0",
+        commentCount: video.statistics.commentCount || "0",
+      },
     };
   } catch (error) {
-    console.error('Error fetching YouTube metadata:', error);
+    console.error("Error fetching YouTube metadata:", error);
     return null;
   }
 }
