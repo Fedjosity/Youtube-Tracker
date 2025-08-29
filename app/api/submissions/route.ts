@@ -85,13 +85,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("Profile found:", (profile as any).id);
-
     const body = await request.json();
-    console.log("Request body:", body);
 
     const validatedData = submissionSchema.parse(body);
-    console.log("Validated data:", validatedData);
 
     let youtubeMetadata = null;
     let youtubeVideoId = null;
@@ -99,15 +95,10 @@ export async function POST(request: NextRequest) {
     // Fetch YouTube metadata if it's a YouTube submission
     if (validatedData.link_type === "youtube" && validatedData.youtube_url) {
       youtubeVideoId = extractVideoId(validatedData.youtube_url);
-      console.log("YouTube video ID:", youtubeVideoId);
 
       if (youtubeVideoId) {
         try {
           youtubeMetadata = await fetchYouTubeMetadata(youtubeVideoId);
-          console.log(
-            "YouTube metadata fetched:",
-            youtubeMetadata ? "success" : "failed"
-          );
         } catch (error) {
           console.error("YouTube metadata fetch error:", error);
           // Continue without metadata
@@ -145,8 +136,6 @@ export async function POST(request: NextRequest) {
       }),
     };
 
-    console.log("Submitting data:", submissionData);
-
     const { data: submission, error } = await supabase
       .from("submissions")
       .insert(submissionData)
@@ -163,8 +152,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-
-    console.log("Submission created:", (submission as any).id);
 
     // Update profile submission count
     const { error: updateError } = await supabase

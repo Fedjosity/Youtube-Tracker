@@ -44,16 +44,13 @@ function AuthForm() {
     if (event) event.preventDefault();
     setLoading(true);
     setError(null);
-    console.log("AuthForm submit", { mode, values });
     if (mode === "login") {
       const { data, error } = await (supabase as any).auth.signInWithPassword({
         email: values.email,
         password: values.password,
       });
-      console.log("signInWithPassword result", { data, error });
       if (error) setError(error.message);
       else {
-        console.log("Login successful, navigating to /dashboard");
         router.push("/dashboard");
       }
     } else {
@@ -66,12 +63,10 @@ function AuthForm() {
           },
         },
       });
-      console.log("signUp result", { data, error });
       if (error) setError(error.message);
       else {
         // Create profile for new user
         if (data.user) {
-          console.log("Creating profile for user:", data.user.id);
           const { data: profileData, error: profileError } = await (
             supabase as any
           )
@@ -99,10 +94,7 @@ function AuthForm() {
             setLoading(false);
             return;
           }
-
-          console.log("Profile created successfully:", profileData);
         }
-        console.log("Registration successful, navigating to /dashboard");
         router.push("/dashboard");
       }
     }

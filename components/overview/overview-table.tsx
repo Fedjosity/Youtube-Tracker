@@ -135,8 +135,6 @@ export function OverviewTable() {
         throw error;
       }
 
-      console.log("Raw submissions data:", data);
-
       // Apply search filter
       let filteredData = data || [];
       if (searchTerm) {
@@ -152,8 +150,6 @@ export function OverviewTable() {
         );
       }
 
-      console.log("After search filter:", filteredData);
-
       // Filter for YouTube videos and extract video IDs
       const youtubeSubmissions = filteredData
         .filter((submission: Submission) => {
@@ -168,23 +164,10 @@ export function OverviewTable() {
           // If video_id is null but we have a URL, try to extract it
           if (!videoId && submission.youtube_url) {
             videoId = extractVideoId(submission.youtube_url);
-            console.log(`Extracted video ID from URL: ${videoId}`);
           }
 
           const hasVideoId = videoId && videoId.trim() !== "";
           const isYouTube = submission.link_type === "youtube";
-
-          console.log(`Submission ${submission.id}:`, {
-            title: submission.title,
-            hasVideoId,
-            videoId: videoId,
-            originalVideoId: submission.youtube_video_id,
-            youtubeUrl: submission.youtube_url,
-            status: submission.status,
-            linkType: submission.link_type,
-            isYouTube,
-            hasProfile: !!submission.profiles,
-          });
 
           return hasVideoId && isYouTube;
         })
@@ -199,8 +182,6 @@ export function OverviewTable() {
           }
           return submission;
         });
-
-      console.log("Final filtered submissions:", youtubeSubmissions);
 
       // Group videos by user
       const groupedByUser: { [key: string]: UserVideos } = {};
@@ -228,7 +209,6 @@ export function OverviewTable() {
         (a.user?.full_name || "").localeCompare(b.user?.full_name || "")
       );
 
-      console.log("Grouped user videos:", userVideosArray);
       return userVideosArray;
     },
   });

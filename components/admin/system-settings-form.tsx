@@ -82,7 +82,6 @@ export function SystemSettingsForm() {
 
     try {
       // In a real app, you'd save these to a settings table
-      console.log("Saving settings:", data);
 
       toast({
         title: "Settings updated",
@@ -420,10 +419,9 @@ export function SystemSettingsForm() {
                       const result = await response.json();
 
                       if (response.ok) {
-                        console.log("Debug data:", result);
                         toast({
                           title: "Debug Complete",
-                          description: `Found ${result.summary.users_with_mismatched_submissions} users with mismatched counts. Check console for details.`,
+                          description: `Found ${result.summary.users_with_mismatched_submissions} users with mismatched counts.`,
                         });
                       } else {
                         throw new Error(

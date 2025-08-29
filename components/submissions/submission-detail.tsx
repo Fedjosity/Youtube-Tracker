@@ -191,8 +191,6 @@ export function SubmissionDetail({
         throw new Error("You don't have permission to delete this submission");
       }
 
-      console.log("Deleting submission:", submission.id);
-
       // Delete the submission - the database trigger will automatically update profile counts
       const { error: deleteError } = await supabase
         .from("submissions")
@@ -203,8 +201,6 @@ export function SubmissionDetail({
         console.error("Delete error:", deleteError);
         throw new Error(deleteError.message || "Failed to delete submission");
       }
-
-      console.log("Submission deleted successfully");
 
       // Manually trigger profile count update for the user as a backup
       try {
@@ -219,7 +215,7 @@ export function SubmissionDetail({
           console.warn("Manual count update failed:", countError);
           // Don't throw here as the main deletion was successful
         } else {
-          console.log("Profile counts updated for user:", submission.user_id);
+          // Profile counts updated successfully
         }
       } catch (countUpdateError) {
         console.warn("Manual count update failed:", countUpdateError);

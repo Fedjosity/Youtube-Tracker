@@ -1,6 +1,7 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartContainer } from "@/components/ui/chart-container";
+import { ChartTooltipContent } from "@/components/ui/chart-tooltip";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase/client";
 import {
@@ -67,28 +68,34 @@ export function WeeklyChart() {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Weekly Submissions</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="h-80 bg-gray-200 rounded animate-pulse" />
-        ) : (
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="week" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="submissions" fill="#3B82F6" name="Total" />
-                <Bar dataKey="published" fill="#10B981" name="Published" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <ChartContainer
+      title="Weekly Submissions"
+      description="Track submission activity and publication rates"
+    >
+      {isLoading ? (
+        <div className="h-80 bg-muted rounded animate-pulse" />
+      ) : (
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis dataKey="week" className="text-xs text-muted-foreground" />
+              <YAxis className="text-xs text-muted-foreground" />
+              <Tooltip content={<ChartTooltipContent />} />
+              <Bar
+                dataKey="submissions"
+                fill="hsl(var(--primary))"
+                name="Total"
+              />
+              <Bar
+                dataKey="published"
+                fill="hsl(var(--success))"
+                name="Published"
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </ChartContainer>
   );
 }

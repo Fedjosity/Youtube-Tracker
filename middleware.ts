@@ -35,13 +35,7 @@ export async function middleware(request: NextRequest) {
     error,
   } = await supabase.auth.getSession();
 
-  // Debug log
-  console.log(
-    "🔑 Middleware Session:",
-    session?.user?.id ?? "None",
-    "Error:",
-    error?.message
-  );
+  // Session retrieved successfully
 
   // Define protected paths
   const protectedPaths = [
@@ -61,7 +55,6 @@ export async function middleware(request: NextRequest) {
 
   // Redirect unauthenticated users from protected routes
   if (isProtectedPath && !session?.user) {
-    console.log("🚫 Redirecting unauthenticated user from:", pathname);
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

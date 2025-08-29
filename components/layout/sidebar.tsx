@@ -29,6 +29,7 @@ export function Sidebar({ isAdmin }: SidebarProps) {
     { name: "Leaderboard", href: "/leaderboard", icon: Trophy },
     { name: "Analytics", href: "/analytics", icon: BarChart3 },
     { name: "Profile", href: "/profile", icon: User },
+    { name: "Settings", href: "/settings", icon: Settings },
   ];
 
   const adminNavigation = [

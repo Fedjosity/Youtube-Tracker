@@ -1,6 +1,7 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartContainer } from "@/components/ui/chart-container";
+import { ChartTooltipContent } from "@/components/ui/chart-tooltip";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase/client";
 import {
@@ -70,43 +71,48 @@ export function AnalyticsCharts() {
   });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Monthly Performance</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="h-80 bg-gray-200 rounded animate-pulse" />
-        ) : (
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip />
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="videos"
-                  stroke="#3B82F6"
-                  strokeWidth={2}
-                  name="Videos Published"
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="views"
-                  stroke="#10B981"
-                  strokeWidth={2}
-                  name="Total Views"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <ChartContainer
+      title="Monthly Performance"
+      description="Track video publications and view counts over time"
+    >
+      {isLoading ? (
+        <div className="h-80 bg-muted rounded animate-pulse" />
+      ) : (
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <XAxis
+                dataKey="month"
+                className="text-xs text-muted-foreground"
+              />
+              <YAxis yAxisId="left" className="text-xs text-muted-foreground" />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                className="text-xs text-muted-foreground"
+              />
+              <Tooltip content={<ChartTooltipContent />} />
+              <Line
+                yAxisId="left"
+                type="monotone"
+                dataKey="videos"
+                stroke="hsl(var(--primary))"
+                strokeWidth={2}
+                name="Videos Published"
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="views"
+                stroke="hsl(var(--success))"
+                strokeWidth={2}
+                name="Total Views"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </ChartContainer>
   );
 }
