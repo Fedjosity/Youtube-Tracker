@@ -1,18 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
-
-    // Check if user is admin
+    const supabase = (await createClient()) as any;
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Check if user is admin
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
@@ -26,33 +26,48 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get all profiles with their counts
-    const { data: profiles, error: profilesError } = await supabase
+    // Get all profiles with their submission counts
+    const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, full_name, total_submissions, total_published");
+      .select("*")
+      .order("total_submissions", { ascending: false });
 
-    if (profilesError) {
-      return NextResponse.json(
-        { error: "Failed to fetch profiles" },
-        { status: 500 }
-      );
+    if (!profiles) {
+      return NextResponse.json({ error: "No profiles found" }, { status: 404 });
     }
 
-    // Get actual submission counts for each user
-    const debugData = await Promise.all(
-      profiles.map(async (profile) => {
-        const { count: actualSubmissions } = await supabase
-          .from("submissions")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", profile.id);
+    const results = [];
 
-        const { count: actualPublished } = await supabase
-          .from("submissions")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", profile.id)
-          .eq("status", "published");
+    for (const profile of profiles) {
+      // Get actual submission count
+      const { count: actualSubmissions } = await supabase
+        .from("submissions")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", profile.id);
 
-        return {
+      // Get actual published count
+      const { count: actualPublished } = await supabase
+        .from("submissions")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", profile.id)
+        .eq("status", "published");
+
+      // Update profile counts if they don't match
+      if (
+        profile.total_submissions !== (actualSubmissions || 0) ||
+        profile.total_published !== (actualPublished || 0)
+      ) {
+        const { data: updatedProfile } = await supabase
+          .from("profiles")
+          .update({
+            total_submissions: actualSubmissions || 0,
+            total_published: actualPublished || 0,
+          })
+          .eq("id", profile.id)
+          .select()
+          .single();
+
+        results.push({
           user_id: profile.id,
           full_name: profile.full_name,
           stored_total_submissions: profile.total_submissions,
@@ -62,24 +77,17 @@ export async function GET(request: NextRequest) {
           submissions_match:
             profile.total_submissions === (actualSubmissions || 0),
           published_match: profile.total_published === (actualPublished || 0),
-        };
-      })
-    );
+          updated: true,
+        });
+      }
+    }
 
     return NextResponse.json({
-      debug_data: debugData,
-      summary: {
-        total_users: profiles.length,
-        users_with_mismatched_submissions: debugData.filter(
-          (d) => !d.submissions_match
-        ).length,
-        users_with_mismatched_published: debugData.filter(
-          (d) => !d.published_match
-        ).length,
-      },
+      message: "Profile counts debugged and updated",
+      results,
     });
   } catch (error) {
-    console.error("Error in debug-profile-counts:", error);
+    console.error("API error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Table,
@@ -7,21 +7,39 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
-import { Trophy, Medal, Award } from 'lucide-react';
+} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase/client";
+import { Trophy, Medal, Award } from "lucide-react";
+
+interface User {
+  id: string;
+  full_name?: string;
+  email: string;
+  avatar_url?: string;
+  role: string;
+  total_published: number;
+  total_submissions: number;
+  user_badges?: Array<{
+    badges?: {
+      name: string;
+      icon: string;
+      color: string;
+    };
+  }>;
+}
 
 export function LeaderboardTable() {
   const { data: leaderboard, isLoading } = useQuery({
-    queryKey: ['leaderboard'],
+    queryKey: ["leaderboard"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select(`
+      const { data } = await (supabase as any)
+        .from("profiles")
+        .select(
+          `
           *,
           user_badges (
             badges (
@@ -30,10 +48,11 @@ export function LeaderboardTable() {
               color
             )
           )
-        `)
-        .order('total_published', { ascending: false });
+        `
+        )
+        .order("total_published", { ascending: false });
 
-      return data || [];
+      return (data || []) as User[];
     },
   });
 
@@ -68,7 +87,7 @@ export function LeaderboardTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {leaderboard?.map((user, index) => (
+              {leaderboard?.map((user: User, index) => (
                 <TableRow key={user.id} className="hover:bg-gray-50">
                   <TableCell className="w-16">
                     {getRankIcon(index + 1)}
@@ -78,7 +97,8 @@ export function LeaderboardTable() {
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={user.avatar_url} />
                         <AvatarFallback>
-                          {user.full_name?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
+                          {user.full_name?.[0]?.toUpperCase() ||
+                            user.email[0].toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div>
@@ -103,16 +123,23 @@ export function LeaderboardTable() {
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-1">
-                      {user.user_badges?.slice(0, 3).map((userBadge: any, badgeIndex: number) => (
-                        <span
-                          key={badgeIndex}
-                          className="text-lg"
-                          title={userBadge.badges?.name}
-                        >
-                          {userBadge.badges?.icon}
-                        </span>
-                      ))}
-                      {user.user_badges?.length > 3 && (
+                      {user.user_badges
+                        ?.slice(0, 3)
+                        .map((userBadge, badgeIndex) => (
+                          <Badge
+                            key={badgeIndex}
+                            variant="secondary"
+                            className="text-xs"
+                            style={{
+                              backgroundColor:
+                                userBadge.badges?.color || "#6B7280",
+                            }}
+                          >
+                            {userBadge.badges?.icon || "🏆"}{" "}
+                            {userBadge.badges?.name || "Badge"}
+                          </Badge>
+                        ))}
+                      {user.user_badges && user.user_badges.length > 3 && (
                         <Badge variant="outline" className="text-xs">
                           +{user.user_badges.length - 3}
                         </Badge>

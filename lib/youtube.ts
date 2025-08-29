@@ -42,7 +42,8 @@ export async function fetchYouTubeMetadata(
 ): Promise<YouTubeVideoData | null> {
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) {
-    throw new Error("YouTube API key not configured");
+    console.warn("YouTube API key not configured - skipping metadata fetch");
+    return null;
   }
 
   try {
@@ -51,12 +52,16 @@ export async function fetchYouTubeMetadata(
     );
 
     if (!response.ok) {
-      throw new Error(`YouTube API error: ${response.status}`);
+      console.error(
+        `YouTube API error: ${response.status} - ${response.statusText}`
+      );
+      return null;
     }
 
     const data = await response.json();
 
     if (!data.items || data.items.length === 0) {
+      console.warn(`No video found for ID: ${videoId}`);
       return null;
     }
 
@@ -69,9 +74,9 @@ export async function fetchYouTubeMetadata(
       thumbnails: video.snippet.thumbnails,
       publishedAt: video.snippet.publishedAt,
       statistics: {
-        viewCount: video.statistics.viewCount || "0",
-        likeCount: video.statistics.likeCount || "0",
-        commentCount: video.statistics.commentCount || "0",
+        viewCount: video.statistics?.viewCount || "0",
+        likeCount: video.statistics?.likeCount || "0",
+        commentCount: video.statistics?.commentCount || "0",
       },
     };
   } catch (error) {

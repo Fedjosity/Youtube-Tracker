@@ -1,23 +1,32 @@
-'use client';
+"use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
-import { motion } from 'framer-motion';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase/client";
+import { motion } from "framer-motion";
+
+interface Contributor {
+  id: string;
+  full_name?: string;
+  email: string;
+  avatar_url?: string;
+  total_published: number;
+  total_submissions: number;
+}
 
 export function TopContributors() {
   const { data: topContributors, isLoading } = useQuery({
-    queryKey: ['top-contributors'],
+    queryKey: ["top-contributors"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('total_published', { ascending: false })
+      const { data } = await (supabase as any)
+        .from("profiles")
+        .select("*")
+        .order("total_published", { ascending: false })
         .limit(5);
 
-      return data || [];
+      return (data || []) as Contributor[];
     },
   });
 
@@ -35,7 +44,7 @@ export function TopContributors() {
           </div>
         ) : (
           <div className="space-y-4">
-            {topContributors?.map((contributor, index) => (
+            {topContributors?.map((contributor: Contributor, index) => (
               <motion.div
                 key={contributor.id}
                 initial={{ opacity: 0, x: 20 }}
@@ -49,7 +58,8 @@ export function TopContributors() {
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={contributor.avatar_url} />
                   <AvatarFallback>
-                    {contributor.full_name?.[0]?.toUpperCase() || contributor.email[0].toUpperCase()}
+                    {contributor.full_name?.[0]?.toUpperCase() ||
+                      contributor.email[0].toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">

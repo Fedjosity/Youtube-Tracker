@@ -1,4 +1,4 @@
-import { createServerClient, setAuthCookies, getSession } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { Database } from "@/types/database";
 
@@ -13,14 +13,22 @@ export function createClient() {
           return cookieStore.get(name)?.value;
         },
         set(name: string, value: string, options) {
-          cookieStore.set({ name, value, ...options });
+          try {
+            cookieStore.set({ name, value, ...options });
+          } catch (error) {
+            // Handle cases where cookies can't be set (e.g., in static generation)
+            console.warn("Could not set cookie:", name, error);
+          }
         },
         remove(name: string, options) {
-          cookieStore.set({ name, value: "", ...options });
+          try {
+            cookieStore.set({ name, value: "", ...options });
+          } catch (error) {
+            // Handle cases where cookies can't be removed
+            console.warn("Could not remove cookie:", name, error);
+          }
         },
       },
     }
   );
 }
-
-export { setAuthCookies, getSession };

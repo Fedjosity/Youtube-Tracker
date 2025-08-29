@@ -5,7 +5,7 @@ import { extractVideoId, fetchYouTubeMetadata } from "@/lib/youtube";
 
 const submissionSchema = z
   .object({
-    title: z.string().min(1),
+    title: z.string().min(1, "Title is required"),
     description: z.string().optional(),
     youtube_url: z.string().optional(),
     drive_url: z.string().optional(),
@@ -13,77 +13,79 @@ const submissionSchema = z
   })
   .refine(
     (data) => {
-      if (data.link_type === "youtube") {
-        // For YouTube submissions, youtube_url should be a valid URL if provided
-        return (
-          !data.youtube_url ||
-          data.youtube_url === "" ||
-          data.youtube_url.match(/^https?:\/\/.+/)
-        );
+      // Ensure at least one URL is provided based on link_type
+      if (
+        data.link_type === "youtube" &&
+        (!data.youtube_url || data.youtube_url.trim() === "")
+      ) {
+        return false;
       }
-      if (data.link_type === "drive") {
-        // For Drive submissions, drive_url should be a valid URL if provided
-        return (
-          !data.drive_url ||
-          data.drive_url === "" ||
-          data.drive_url.match(/^https?:\/\/.+/)
-        );
+      if (
+        data.link_type === "drive" &&
+        (!data.drive_url || data.drive_url.trim() === "")
+      ) {
+        return false;
       }
       return true;
     },
     {
-      message: "Please provide a valid URL for the selected link type",
+      message: "URL is required for the selected link type",
+      path: ["youtube_url", "drive_url"],
+    }
+  )
+  .refine(
+    (data) => {
+      // Validate URL format if provided
+      if (data.link_type === "youtube" && data.youtube_url) {
+        try {
+          new URL(data.youtube_url);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+      if (data.link_type === "drive" && data.drive_url) {
+        try {
+          new URL(data.drive_url);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+      return true;
+    },
+    {
+      message: "Invalid URL format",
       path: ["youtube_url", "drive_url"],
     }
   );
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = (await createClient()) as any;
     const {
       data: { user },
-      error: userError,
     } = await supabase.auth.getUser();
 
-    if (userError) {
-      console.error("Auth error:", userError);
-      return NextResponse.json(
-        { error: "Authentication error" },
-        { status: 401 }
-      );
-    }
-
     if (!user) {
-      console.error("No user found");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    console.log("User authenticated:", user.id);
-
-    // Check if user has a profile
-    const { data: profile, error: profileError } = await supabase
+    // Get user profile
+    const { data: profile } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", user.id)
       .single();
 
-    if (profileError) {
-      console.error("Profile fetch error:", profileError);
-      return NextResponse.json(
-        { error: "User profile not found. Please contact support." },
-        { status: 400 }
-      );
-    }
-
     if (!profile) {
-      console.error("No profile found for user:", user.id);
       return NextResponse.json(
         { error: "User profile not found. Please contact support." },
         { status: 400 }
       );
     }
 
-    console.log("Profile found:", profile.id);
+    console.log("Profile found:", (profile as any).id);
 
     const body = await request.json();
     console.log("Request body:", body);
@@ -162,16 +164,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("Submission created:", submission.id);
+    console.log("Submission created:", (submission as any).id);
 
     // Update profile submission count
     const { error: updateError } = await supabase
       .from("profiles")
       .update({
-        total_submissions: (profile.total_submissions || 0) + 1,
+        total_submissions: ((profile as any).total_submissions || 0) + 1,
         // Only increment published count for YouTube submissions (published immediately)
         ...(validatedData.link_type === "youtube" && {
-          total_published: (profile.total_published || 0) + 1,
+          total_published: ((profile as any).total_published || 0) + 1,
         }),
       })
       .eq("id", user.id);
@@ -220,7 +222,7 @@ async function checkAndAwardBadges(userId: string, supabase: any) {
     const { data: badges } = await supabase
       .from("badges")
       .select("*")
-      .lte("threshold", profile.total_submissions);
+      .lte("threshold", (profile as any).total_submissions);
 
     if (!badges) return;
 
@@ -240,12 +242,13 @@ async function checkAndAwardBadges(userId: string, supabase: any) {
     );
 
     if (newBadges.length > 0) {
-      await supabase.from("user_badges").insert(
-        newBadges.map((badge: any) => ({
-          user_id: userId,
-          badge_id: badge.id,
-        }))
-      );
+      const badgeInserts = newBadges.map((badge: any) => ({
+        user_id: userId,
+        badge_id: badge.id,
+        earned_at: new Date().toISOString(),
+      }));
+
+      await supabase.from("user_badges").insert(badgeInserts);
     }
   } catch (error) {
     console.error("Badge award error:", error);

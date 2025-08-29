@@ -5,7 +5,7 @@ export async function getUser() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase as any).auth.getUser();
   return user;
 }
 
@@ -21,7 +21,7 @@ export async function getProfile() {
   const user = await requireAuth();
   const supabase = await createClient();
 
-  const { data: profile } = await supabase
+  const { data: profile } = await (supabase as any)
     .from("profiles")
     .select("*")
     .eq("id", user.id)
@@ -32,7 +32,7 @@ export async function getProfile() {
 
 export async function requireAdmin() {
   const profile = await getProfile();
-  if (!profile || profile.role !== "admin") {
+  if (!profile || (profile as any).role !== "admin") {
     redirect("/dashboard");
   }
   return profile;

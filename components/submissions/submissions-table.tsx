@@ -27,6 +27,20 @@ import Link from "next/link";
 import { useState } from "react";
 import { Search, Filter } from "lucide-react";
 
+interface Submission {
+  id: string;
+  title: string;
+  status: string;
+  youtube_url?: string;
+  youtube_thumbnail?: string;
+  created_at: string;
+  profiles?: {
+    full_name?: string;
+    avatar_url?: string;
+    total_submissions?: number;
+  };
+}
+
 export function SubmissionsTable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -36,7 +50,7 @@ export function SubmissionsTable() {
   const { data, isLoading } = useQuery({
     queryKey: ["submissions", searchTerm, statusFilter, page],
     queryFn: async () => {
-      let query = supabase
+      let query = (supabase as any)
         .from("submissions")
         .select(
           `
@@ -62,7 +76,7 @@ export function SubmissionsTable() {
       }
 
       const { data, count } = await query;
-      return { submissions: data || [], count: count || 0 };
+      return { submissions: (data || []) as Submission[], count: count || 0 };
     },
   });
 
@@ -107,8 +121,7 @@ export function SubmissionsTable() {
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-40">
-              <Filter className="mr-2 h-4 w-4" />
-              <SelectValue placeholder="Status" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
@@ -125,16 +138,15 @@ export function SubmissionsTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Title</TableHead>
-              <TableHead>Submitted By</TableHead>
+              <TableHead>Submission</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Type</TableHead>
+              <TableHead>Submitter</TableHead>
               <TableHead>Created</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data?.submissions.map((submission) => (
+            {data?.submissions.map((submission: Submission) => (
               <TableRow key={submission.id} className="hover:bg-gray-50">
                 <TableCell>
                   <div className="flex items-center space-x-3">
@@ -149,33 +161,12 @@ export function SubmissionsTable() {
                       <p className="font-medium text-gray-900">
                         {submission.title}
                       </p>
-                      {submission.youtube_title &&
-                        submission.youtube_title !== submission.title && (
-                          <p className="text-sm text-gray-500">
-                            {submission.youtube_title}
-                          </p>
-                        )}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center space-x-2">
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={submission.profiles?.avatar_url} />
-                      <AvatarFallback>
-                        {submission.profiles?.full_name?.[0]?.toUpperCase() ||
-                          "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm">
-                      {submission.profiles?.full_name || "Unknown"}
-                      {typeof submission.profiles?.total_submissions ===
-                        "number" && (
-                        <span className="ml-1 text-xs text-gray-500">
-                          ({submission.profiles.total_submissions} submissions)
-                        </span>
+                      {submission.youtube_url && (
+                        <p className="text-sm text-gray-500 truncate">
+                          {submission.youtube_url}
+                        </p>
                       )}
-                    </span>
+                    </div>
                   </div>
                 </TableCell>
                 <TableCell>
@@ -187,17 +178,28 @@ export function SubmissionsTable() {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline">{submission.link_type}</Badge>
+                  <div className="flex items-center space-x-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={submission.profiles?.avatar_url} />
+                      <AvatarFallback>
+                        {submission.profiles?.full_name?.[0]?.toUpperCase() ||
+                          "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm">
+                      {submission.profiles?.full_name || "Unknown User"}
+                    </span>
+                  </div>
                 </TableCell>
                 <TableCell>
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-gray-500">
                     {format(new Date(submission.created_at), "MMM d, yyyy")}
                   </span>
                 </TableCell>
                 <TableCell>
                   <Link href={`/submissions/${submission.id}`}>
                     <Button variant="outline" size="sm">
-                      View
+                      View Details
                     </Button>
                   </Link>
                 </TableCell>
@@ -208,17 +210,17 @@ export function SubmissionsTable() {
 
         {/* Pagination */}
         {data && data.count > pageSize && (
-          <div className="flex items-center justify-between mt-4">
-            <p className="text-sm text-gray-600">
+          <div className="flex items-center justify-between mt-6">
+            <p className="text-sm text-gray-500">
               Showing {page * pageSize + 1} to{" "}
               {Math.min((page + 1) * pageSize, data.count)} of {data.count}{" "}
-              results
+              submissions
             </p>
             <div className="flex space-x-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage(Math.max(0, page - 1))}
+                onClick={() => setPage(page - 1)}
                 disabled={page === 0}
               >
                 Previous

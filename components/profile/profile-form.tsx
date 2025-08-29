@@ -89,7 +89,7 @@ export function ProfileForm() {
             setProfile(profileData);
             // Update form with profile data
             form.reset({
-              full_name: profileData.full_name || "",
+              full_name: (profileData as any).full_name || "",
               email: user.email || "",
             });
           }
@@ -116,7 +116,7 @@ export function ProfileForm() {
 
     try {
       // Update profile in database
-      const { error: profileError } = await supabase
+      const { error: profileError } = await (supabase as any)
         .from("profiles")
         .update({
           full_name: data.full_name,
@@ -129,7 +129,7 @@ export function ProfileForm() {
 
       // Update email if changed
       if (data.email !== user.email) {
-        const { error: emailError } = await supabase.auth.updateUser({
+        const { error: emailError } = await (supabase as any).auth.updateUser({
           email: data.email,
         });
 

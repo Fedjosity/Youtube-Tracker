@@ -163,7 +163,7 @@ export function OverviewTable() {
             return false;
           }
 
-          let videoId = submission.youtube_video_id;
+          let videoId: string | null = submission.youtube_video_id;
 
           // If video_id is null but we have a URL, try to extract it
           if (!videoId && submission.youtube_url) {

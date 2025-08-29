@@ -89,7 +89,7 @@ export function SubmissionDetail({
       const timestampField =
         action === "approve" ? "published_at" : "rejected_at";
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("submissions")
         .update({
           status: newStatus,
@@ -103,10 +103,10 @@ export function SubmissionDetail({
 
       // If approved, update the user's profile count
       if (action === "approve") {
-        const { error: profileError } = await supabase
+        const { error: profileError } = await (supabase as any)
           .from("profiles")
           .update({
-            total_published: submission.profiles.total_published + 1,
+            total_published: (submission.profiles as any).total_published + 1,
           })
           .eq("id", submission.user_id);
 
@@ -147,7 +147,7 @@ export function SubmissionDetail({
     setLoading(true);
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("submissions")
         .update({
           title: editForm.title,
@@ -208,7 +208,7 @@ export function SubmissionDetail({
 
       // Manually trigger profile count update for the user as a backup
       try {
-        const { error: countError } = await supabase.rpc(
+        const { error: countError } = await (supabase as any).rpc(
           "recalculate_user_profile_counts",
           {
             user_uuid: submission.user_id,

@@ -1,18 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
-
-    // Check if user is admin
+    const supabase = (await createClient()) as any;
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Check if user is admin
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
@@ -26,44 +26,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse request body to check if we're fixing a specific user
-    const body = await request.json().catch(() => ({}));
-    const { userId } = body;
+    // Get all profiles
+    const { data: profiles } = await supabase.from("profiles").select("*");
 
-    let result;
-    if (userId) {
-      // Fix counts for specific user
-      const { error } = await supabase.rpc("recalculate_user_profile_counts", {
-        user_uuid: userId,
-      });
-
-      if (error) {
-        console.error("Error recalculating user profile counts:", error);
-        return NextResponse.json(
-          { error: "Failed to recalculate user profile counts" },
-          { status: 500 }
-        );
-      }
-
-      result = { message: `Profile counts recalculated for user ${userId}` };
-    } else {
-      // Fix counts for all users
-      const { error } = await supabase.rpc("recalculate_all_profile_counts");
-
-      if (error) {
-        console.error("Error recalculating profile counts:", error);
-        return NextResponse.json(
-          { error: "Failed to recalculate profile counts" },
-          { status: 500 }
-        );
-      }
-
-      result = { message: "Profile counts recalculated for all users" };
+    if (!profiles) {
+      return NextResponse.json({ error: "No profiles found" }, { status: 404 });
     }
 
-    return NextResponse.json(result);
+    const results = [];
+
+    for (const profile of profiles) {
+      // Get actual submission count
+      const { count: actualSubmissions } = await supabase
+        .from("submissions")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", profile.id);
+
+      // Get actual published count
+      const { count: actualPublished } = await supabase
+        .from("submissions")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", profile.id)
+        .eq("status", "published");
+
+      // Update profile counts
+      const { data: updatedProfile } = await supabase
+        .from("profiles")
+        .update({
+          total_submissions: actualSubmissions || 0,
+          total_published: actualPublished || 0,
+        })
+        .eq("id", profile.id)
+        .select()
+        .single();
+
+      results.push({
+        user_id: profile.id,
+        full_name: profile.full_name,
+        old_total_submissions: profile.total_submissions,
+        old_total_published: profile.total_published,
+        new_total_submissions: actualSubmissions || 0,
+        new_total_published: actualPublished || 0,
+      });
+    }
+
+    return NextResponse.json({
+      message: "Profile counts fixed",
+      results,
+    });
   } catch (error) {
-    console.error("Error in fix-profile-counts:", error);
+    console.error("API error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

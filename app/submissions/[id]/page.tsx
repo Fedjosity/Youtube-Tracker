@@ -1,23 +1,25 @@
-import { AppLayout } from "@/components/layout/app-layout";
-import { SubmissionDetail } from "@/components/submissions/submission-detail";
 import { createClient } from "@/lib/supabase/server";
-import { notFound } from "next/navigation";
-import { requireAuth } from "@/lib/auth";
+import { SubmissionDetail } from "@/components/submissions/submission-detail";
+import { CommentsSection } from "@/components/submissions/comments-section";
+import { StatusTimeline } from "@/components/submissions/status-timeline";
+import { redirect } from "next/navigation";
 
-export default async function SubmissionDetailPage({
+export default async function SubmissionPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = await params;
-  const supabase = await createClient();
-
-  // Get current user and check if they're an admin
+  const supabase = (await createClient()) as any;
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  let isAdmin = false;
 
+  if (!user) {
+    redirect("/");
+  }
+
+  // Check if user is admin
+  let isAdmin = false;
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
@@ -25,7 +27,7 @@ export default async function SubmissionDetailPage({
       .eq("id", user.id)
       .single();
 
-    isAdmin = profile?.role === "admin";
+    isAdmin = (profile as any)?.role === "admin";
   }
 
   const { data: submission } = await supabase
@@ -34,22 +36,30 @@ export default async function SubmissionDetailPage({
       `
       *,
       profiles (
+        id,
         full_name,
-        avatar_url,
-        role
+        email,
+        avatar_url
       )
     `
     )
-    .eq("id", id)
+    .eq("id", params.id)
     .single();
 
   if (!submission) {
-    notFound();
+    redirect("/submissions");
+  }
+
+  // Check if user can view this submission (admin or owner)
+  if (!isAdmin && submission.user_id !== user.id) {
+    redirect("/submissions");
   }
 
   return (
-    <AppLayout>
+    <div className="container mx-auto py-8 space-y-8">
       <SubmissionDetail submission={submission} isAdmin={isAdmin} />
-    </AppLayout>
+      <StatusTimeline submission={submission} />
+      <CommentsSection submissionId={params.id} />
+    </div>
   );
 }

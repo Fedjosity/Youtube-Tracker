@@ -1,40 +1,52 @@
-'use client';
+"use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
-import { useState } from 'react';
-import { format } from 'date-fns';
-import { toast } from 'sonner';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase/client";
+import { useState } from "react";
+import { format } from "date-fns";
+import { toast } from "sonner";
 
 interface CommentsSectionProps {
   submissionId: string;
 }
 
+interface Comment {
+  id: string;
+  content: string;
+  created_at: string;
+  profiles?: {
+    full_name?: string;
+    avatar_url?: string;
+  };
+}
+
 export function CommentsSection({ submissionId }: CommentsSectionProps) {
-  const [newComment, setNewComment] = useState('');
+  const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: comments, isLoading } = useQuery({
-    queryKey: ['comments', submissionId],
+    queryKey: ["comments", submissionId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('comments')
-        .select(`
+      const { data } = await (supabase as any)
+        .from("comments")
+        .select(
+          `
           *,
           profiles (
             full_name,
             avatar_url
           )
-        `)
-        .eq('submission_id', submissionId)
-        .order('created_at', { ascending: true });
+        `
+        )
+        .eq("submission_id", submissionId)
+        .order("created_at", { ascending: true });
 
-      return data || [];
+      return (data || []) as Comment[];
     },
   });
 
@@ -43,24 +55,24 @@ export function CommentsSection({ submissionId }: CommentsSectionProps) {
 
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const {
+        data: { user },
+      } = await (supabase as any).auth.getUser();
+      if (!user) throw new Error("Not authenticated");
 
-      const { error } = await supabase
-        .from('comments')
-        .insert({
-          submission_id: submissionId,
-          user_id: user.id,
-          content: newComment,
-        });
+      const { error } = await (supabase as any).from("comments").insert({
+        submission_id: submissionId,
+        user_id: user.id,
+        content: newComment,
+      });
 
       if (error) throw error;
 
-      setNewComment('');
-      queryClient.invalidateQueries({ queryKey: ['comments', submissionId] });
-      toast.success('Comment added successfully');
+      setNewComment("");
+      queryClient.invalidateQueries({ queryKey: ["comments", submissionId] });
+      toast.success("Comment added successfully");
     } catch (error) {
-      toast.error('Failed to add comment');
+      toast.error("Failed to add comment");
     } finally {
       setLoading(false);
     }
@@ -80,12 +92,12 @@ export function CommentsSection({ submissionId }: CommentsSectionProps) {
             onChange={(e) => setNewComment(e.target.value)}
             rows={3}
           />
-          <Button 
+          <Button
             onClick={handleSubmitComment}
             disabled={!newComment.trim() || loading}
             size="sm"
           >
-            {loading ? 'Adding...' : 'Add Comment'}
+            {loading ? "Adding..." : "Add Comment"}
           </Button>
         </div>
 
@@ -106,21 +118,24 @@ export function CommentsSection({ submissionId }: CommentsSectionProps) {
               No comments yet. Be the first to comment!
             </p>
           ) : (
-            comments?.map((comment) => (
+            comments?.map((comment: Comment) => (
               <div key={comment.id} className="flex space-x-3">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={comment.profiles?.avatar_url} />
                   <AvatarFallback>
-                    {comment.profiles?.full_name?.[0]?.toUpperCase() || 'U'}
+                    {comment.profiles?.full_name?.[0]?.toUpperCase() || "U"}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
                   <div className="flex items-center space-x-2 mb-1">
                     <p className="text-sm font-medium">
-                      {comment.profiles?.full_name || 'Unknown User'}
+                      {comment.profiles?.full_name || "Unknown User"}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {format(new Date(comment.created_at), 'MMM d, yyyy h:mm a')}
+                      {format(
+                        new Date(comment.created_at),
+                        "MMM d, yyyy h:mm a"
+                      )}
                     </p>
                   </div>
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">

@@ -46,7 +46,7 @@ function AuthForm() {
     setError(null);
     console.log("AuthForm submit", { mode, values });
     if (mode === "login") {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await (supabase as any).auth.signInWithPassword({
         email: values.email,
         password: values.password,
       });
@@ -57,7 +57,7 @@ function AuthForm() {
         router.push("/dashboard");
       }
     } else {
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await (supabase as any).auth.signUp({
         email: values.email,
         password: values.password,
         options: {
@@ -72,7 +72,9 @@ function AuthForm() {
         // Create profile for new user
         if (data.user) {
           console.log("Creating profile for user:", data.user.id);
-          const { data: profileData, error: profileError } = await supabase
+          const { data: profileData, error: profileError } = await (
+            supabase as any
+          )
             .from("profiles")
             .upsert(
               {

@@ -65,6 +65,27 @@ export function NewSubmissionDialog({ children }: NewSubmissionDialogProps) {
         return;
       }
 
+      // Validate URL format
+      if (formData.link_type === "youtube") {
+        try {
+          new URL(formData.youtube_url);
+        } catch {
+          toast.error("Please enter a valid YouTube URL");
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (formData.link_type === "drive") {
+        try {
+          new URL(formData.drive_url);
+        } catch {
+          toast.error("Please enter a valid Google Drive URL");
+          setLoading(false);
+          return;
+        }
+      }
+
       const response = await fetch("/api/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -98,7 +119,13 @@ export function NewSubmissionDialog({ children }: NewSubmissionDialogProps) {
         return;
       }
 
-      toast.success("Submission created successfully!");
+      // Show success message based on link type
+      const successMessage =
+        formData.link_type === "youtube"
+          ? "YouTube submission published successfully!"
+          : "Drive submission created as draft!";
+
+      toast.success(successMessage);
       setOpen(false);
       setFormData({
         title: "",
@@ -109,6 +136,7 @@ export function NewSubmissionDialog({ children }: NewSubmissionDialogProps) {
       });
       router.push(`/submissions/${result.id}`);
     } catch (error) {
+      console.error("Submission error:", error);
       toast.error("Failed to create submission");
     } finally {
       setLoading(false);
@@ -139,6 +167,7 @@ export function NewSubmissionDialog({ children }: NewSubmissionDialogProps) {
           }
         } catch (error) {
           console.error("Failed to fetch YouTube metadata:", error);
+          // Don't show error to user as this is optional
         }
       }
     }
@@ -152,6 +181,11 @@ export function NewSubmissionDialog({ children }: NewSubmissionDialogProps) {
           <DialogTitle>New Submission</DialogTitle>
           <DialogDescription>
             Submit a new video for review and collaboration tracking.
+            <br />
+            <span className="text-sm text-muted-foreground">
+              • YouTube links will be automatically published
+              <br />• Drive links will be saved as drafts for review
+            </span>
           </DialogDescription>
         </DialogHeader>
 
@@ -197,8 +231,10 @@ export function NewSubmissionDialog({ children }: NewSubmissionDialogProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="youtube">YouTube</SelectItem>
-                <SelectItem value="drive">Google Drive</SelectItem>
+                <SelectItem value="youtube">
+                  YouTube (Auto-published)
+                </SelectItem>
+                <SelectItem value="drive">Google Drive (Draft)</SelectItem>
               </SelectContent>
             </Select>
           </div>

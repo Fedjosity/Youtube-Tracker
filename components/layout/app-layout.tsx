@@ -12,7 +12,7 @@ export async function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex">
         {/* Sidebar - hidden on mobile, visible on desktop */}
         <div className="hidden md:block">
-          <Sidebar isAdmin={profile?.role === "admin"} />
+          <Sidebar isAdmin={(profile as any)?.role === "admin"} />
         </div>
         {/* Main content - full width on mobile, adjusted on desktop */}
         <main className="flex-1 p-4 md:p-6 w-full md:ml-0">{children}</main>

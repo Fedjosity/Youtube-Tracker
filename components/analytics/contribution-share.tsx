@@ -14,18 +14,24 @@ import {
 } from "recharts";
 import { Download } from "lucide-react";
 
+interface User {
+  full_name?: string;
+  email: string;
+  total_published: number;
+}
+
 export function ContributionShare() {
   const { data: contributions, isLoading } = useQuery({
     queryKey: ["contribution-share"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("profiles")
         .select("full_name, email, total_published")
         .gt("total_published", 0)
         .order("total_published", { ascending: false });
 
       return (
-        data?.map((user, index) => ({
+        (data as User[])?.map((user, index) => ({
           name: user.full_name || user.email,
           value: user.total_published,
           color: `hsl(${(index * 137.508) % 360}, 70%, 50%)`, // Golden ratio for nice color distribution
@@ -66,28 +72,30 @@ export function ContributionShare() {
             No published videos yet
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={320}>
-            <PieChart>
-              <Pie
-                data={contributions}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-                label={({ name, percent }) =>
-                  `${name} ${(percent * 100).toFixed(0)}%`
-                }
-              >
-                {contributions?.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={contributions}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, percent }) =>
+                    `${name} ${(percent * 100).toFixed(0)}%`
+                  }
+                >
+                  {contributions?.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         )}
       </CardContent>
     </Card>
